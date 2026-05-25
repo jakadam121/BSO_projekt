@@ -1,6 +1,8 @@
 import os
 import sys
 
+from discovery import discover_lan_subnet
+
 SCAN_PROFILES = {
     "quick":    "-F -sV",
     "standard": "-sV -sC",
@@ -11,10 +13,20 @@ SCAN_PROFILES = {
 def load_config():
     cfg = {}
 
+    # SCAN_SUBNET jest opcjonalny - jesli nie podano, wykrywamy automatycznie
+    # pytajac MikroTik REST API o adresy IP routera.
     cfg["subnet"] = os.environ.get("SCAN_SUBNET")
     if not cfg["subnet"]:
-        print("ERROR: SCAN_SUBNET nie ustawiona", file=sys.stderr)
-        return None
+        print("SCAN_SUBNET nie ustawiona - probuje wykryc automatycznie...")
+        mt_user = os.environ.get("MIKROTIK_USER", "admin")
+        mt_pass = os.environ.get("MIKROTIK_PASS", "")
+        if not mt_pass:
+            print("ERROR: ustaw MIKROTIK_PASS albo SCAN_SUBNET recznie", file=sys.stderr)
+            return None
+        cfg["subnet"] = discover_lan_subnet(mt_user, mt_pass)
+        if not cfg["subnet"]:
+            print("ERROR: nie udalo sie wykryc podsieci LAN", file=sys.stderr)
+            return None
 
     cfg["email_to"] = os.environ.get("EMAIL_TO")
     if not cfg["email_to"]:
